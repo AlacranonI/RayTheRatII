@@ -36,7 +36,10 @@ async def on_ready() -> None:
 # Listening for messages
 @client.event
 async def on_message(message: Message) -> None:
-    if message.author == client.user or message.channel != 1276621797541806136:
+    if(message.author == client.user or
+       message.author.id != 1223150746728530002 or
+       message.channel.id != 1276621797541806136):
+        print('Response conditions not met. Ignoring...')
         return
     
     username: str = str(message.author)
