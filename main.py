@@ -2,49 +2,67 @@ from typing import Final
 import os
 from dotenv import load_dotenv
 from discord import Intents, Client, Message
-from types import FunctionType
+from choice_types.features import Features
 from responses import get_response
 from quotes import get_quote
 from images import get_image
 from delegator import choose_feature
 
-# Loading our token
-load_dotenv(dotenv_path='.env.client')
+# Loading our environment variables
+load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_BOT_TOKEN')
 
-load_dotenv(dotenv_path='.env.guild')
-ADMIN_IDS: Final[list[int]] = os.getenv('ADMIN_IDS').split(',')
-TESTER_IDS: Final[list[int]] = os.getenv('TESTER_IDS').split(',')
+# Reads the IDs of the elements from the respective files
+def read_ids(file_path: str) -> list[int]:
+    file_path = os.path.join(os.path.dirname(__file__), 'element_ids', file_path)
+    with open(file_path, 'r') as f:
+        return [int(line.strip().split('#')[0]) for line in f.readlines()]
 
-QUOTES_CHANNEL_ID: Final[int] = int(os.getenv('QUOTES_CHANNEL_ID'))
-IMAGES_CHANNEL_ID: Final[int] = int(os.getenv('IMAGES_CHANNEL_ID'))
+# Reading the IDs of the admins and testers
+ADMIN_IDS: Final[list[int]] = read_ids('admins.txt')
+TESTER_IDS: Final[list[int]] = read_ids('testers.txt')
 
+# Reading the IDs of relevant channels
+QUOTES_CHANNEL_ID: Final[int] = read_ids('quotes_channel.txt')[0]
+IMAGES_CHANNEL_ID: Final[int] = read_ids('images_channel.txt')[0]
+CHAT_CHANNEL_ID: Final[int] = read_ids('chat_channel.txt')[0]
+TEST_CHANNEL_ID: Final[int] = read_ids('test_channel.txt')[0]
+                                  
 # Instantiating the bot
 intents: Intents = Intents.default()
 intents.message_content = True
 client: Client = Client(intents=intents)
 
 # Preparing message functionality
-async def send_message(message: Message, user_message: str) -> None:
+async def process_message(message: Message, user_message: str) -> None:
+    # If the user's message is empty, we can't do anything
     if not user_message:
         print('(Message was empty because intents weren\'t enabled probably lol)')
         return
 
-#    if is_private := user_message[0] == 'r':
-#        user_message = user_message[1:]
+    user_message_split = user_message.split(' ')
 
-    choice: FunctionType = choose_feature(user_message[1:])
+    # Only the first character of the user's choice is relevant
+    choice = user_message_split[0].lower()[1:]
+
+    # Combines the rest of the user's message to continue processing
+    user_message = ' '.join(user_message_split[1:])
 
     functions = {
-        FunctionType.INVALID: 'I may be omnipotent, but you some how found a way to confuse me. Define your function CLEARLY next time, mortal.',
-        FunctionType.QUOTER: get_quote(user_message),
-        FunctionType.IMAGER: get_image(user_message),
-        FunctionType.RESPONDER: get_response(user_message)
+        Features.INVALID: 'I may be omnipotent, but you some how found a way to confuse me. Look at my bio and define your function CLEARLY next time, mortal.',
+        Features.QUOTER: get_quote(client, user_message),
+        Features.IMAGER: get_image(client, user_message),
+        Features.RESPONDER: get_response(client, user_message)
     }
+
+    # Fail safe
+    if choice not in functions.keys():
+        choice = Features.INVALID
 
     response: str = functions[choice]
 
     try:
+        # Sending response
         await message.channel.send(response)
     except Exception as e:
         print(e)
@@ -57,10 +75,18 @@ async def on_ready() -> None:
 # Listening for messages
 @client.event
 async def on_message(message: Message) -> None:
+
+    # If the message doesn't start with the command, we skip it
+    if(not message.content.lower().startswith('!ray')):
+        print('Skipped...')
+        return
+
+    # If the message is from the bot itself, a tester, or not in the test channel, we skip it
     if(message.author == client.user or
-       message.author.id != 1223150746728530002 or
-       message.channel.id != 1276621797541806136):
-        print('Response conditions not met. Ignoring...')
+       message.author.id not in TESTER_IDS or
+       message.channel.id != TEST_CHANNEL_ID or #TODO Change on production
+       message.channel.id != CHAT_CHANNEL_ID):
+        print('Skipped...')
         return
     
     username: str = str(message.author)
@@ -68,7 +94,7 @@ async def on_message(message: Message) -> None:
     channel: str = str(message.channel)
 
     print(f'[{channel}] {username}: "{user_message}"')
-    await send_message(message, user_message)
+    await process_message(message, user_message)
 
 def main() -> None: 
     client.run(token=TOKEN)
