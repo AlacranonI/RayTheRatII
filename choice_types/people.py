@@ -1,0 +1,27 @@
+from enum import Enum
+
+class People(Enum):
+    INVALID = 0
+    RANDOM = 'r'
+    TONY = 'tony'
+    ELI = 'eli'
+    CISCO = 'cisco'
+    LUIS = 'luis'
+    SOPHIE = 'sophie'
+    DANIEL = 'daniel'
+    CADEN = 'caden'
+    MORGAN = 'morgan'
+    CARTER = 'carter'
+    OLIVER = 'oliver'
+    VINCENT = 'vincent'
+    MITZ = 'mitz'
+    ANTHONY = 'anthony'
+    ZHILOW = 'zhilow'
+    EMBERR = 'emberr'
+    GOOSE = 'goose'
+    KENNETH = 'kenneth'
+    TREY = 'trey'
+    DRAG = 'drag'
+    KAIL = 'kail'
+    EMMA = 'emma'
+    FIX = 'fix'
